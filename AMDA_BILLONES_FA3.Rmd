@@ -1,0 +1,270 @@
+---
+title: "Applied Multivariate Data Analysis"
+author: "Cristel Kaye Billones"
+output: pdf_document
+---
+
+## Formative Assessment 3
+
+The study involved participants speed dating a set of potential dating partners and rating how much they would like to go on a real date with them at the end of the night. The attractiveness and personality of the dating partners was manipulated. Gender was also examined as a potential moderator. There are three independent variables—looks (attractive, average, ugly), personality (high charisma, some charisma, no charisma), and gender (male versus female).
+
+Load the necessary libraries
+```{r, message=FALSE, warning=FALSE}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(afex)
+library(emmeans)
+library(ggplot2)
+```
+
+# Load the dataset
+```{r, message=FALSE, warning=FALSE}
+# Load the dataset
+file_path <- file.choose()
+looksorpersonality <- read_csv(file_path)
+```
+# Check the structure and summarize the data
+```{r}
+# Check the structure and summarize the data
+head(looksorpersonality)
+str(looksorpersonality)
+summary(looksorpersonality)
+```
+
+**1. Analyze the dataset using R and/or Python using mixed-design ANOVA and check if there is a three-way interaction between gender, looks and personality.**
+
+```{r message=TRUE, warning=TRUE}
+# Convert the dataset to long format
+looksorpersonality_long <- looksorpersonality %>%
+  pivot_longer(cols = -Gender, names_to = "condition", values_to = "rating") %>%
+  separate(condition, into = c("looks", "personality"), sep = "_")
+
+# Convert relevant columns to factors
+looksorpersonality_long$Gender <- factor(looksorpersonality_long$Gender)
+looksorpersonality_long$looks <- factor(looksorpersonality_long$looks, levels = c("att", "av", "ug"))
+looksorpersonality_long$personality <- factor(looksorpersonality_long$personality, levels = c("high", "some", "none"))
+
+# Mixed-design ANOVA
+anova_model <- aov_car(rating ~ Gender * looks * personality + Error(Gender/(looks*personality)), data = looksorpersonality_long)
+
+# Check the ANOVA results
+summary(anova_model)
+```
+
+\newpage
+## Results of the Mixed-Design ANOVA
+
+Based on the results of the mixed-design ANOVA, there is no significant three-way interaction between **Gender**, **Looks**, and **Personality**. The analysis primarily shows non-significant effects for both the main effects and interactions.
+
+The main effect of **Looks** on ratings resulted in an F-value of \( F(2, 2) = 5.27 \) with a p-value of \( p = 0.1595 \), indicating that the differences in ratings across different levels of looks (attractive, average, and unattractive) are not statistically significant at the 0.05 level. Similarly, the main effect of **Personality** also showed non-significance with \( F(2, 2) = 5.26 \) and a p-value of \( p = 0.1598 \). This suggests that personality traits (high, some, and none) do not significantly influence the ratings independently of gender or looks.
+
+The interaction effect between **Looks** and **Personality** also failed to reach significance, with an F-value of \( F(4, 4) = 1.52 \) and a p-value of \( p = 0.3476 \). This means that the combined effect of looks and personality on the ratings is not significant, implying that changes in personality do not lead to significant differences in ratings across the different levels of looks.
+
+Additionally, the warning regarding the data aggregation suggests that multiple observations exist for each design cell, and the data was automatically aggregated using the mean. This aggregation may have influenced the results and should be considered when interpreting the outcomes. Another warning related to non-sphericity highlights the need to test assumptions in repeated measures ANOVA, as violations of sphericity could lead to inaccurate p-values.
+
+In conclusion, the analysis does not show a significant three-way interaction or any significant two-way interactions between gender, looks, and personality. Future analysis should consider verifying the data structure, applying sphericity corrections, and possibly conducting post-hoc tests or pairwise comparisons to explore specific relationships further.
+
+
+\newpage
+
+**2. If there is a three-way interaction between gender, looks and personality, then analyze and interpret the other significant two-way interactions and also include a plot of the means.**
+
+```{r warning=FALSE}
+# Post-hoc tests 
+emmeans(anova_model, pairwise ~ looks | personality)
+emmeans(anova_model, pairwise ~ personality | looks)
+```
+The post-hoc analysis conducted with `emmeans` to explore the interaction between **looks** and **personality** reveals some interesting patterns, though no significant results were found due to large standard errors and NaN p-values. When personality is **high**, there is no significant difference in ratings for different levels of looks, with variability in estimates making the results inconclusive. In the **some** personality condition, people tend to rate attractive looks much higher, with notable contrasts between looks levels, though the lack of statistical significance remains a concern.
+
+When comparing **personality** levels within each **looks** category, for **average** and **ugly** looks, personality makes more of a difference. For average looks, contrasts between high and no personality levels show larger differences in ratings. However, for **ugly** looks, personality has a smaller but noticeable effect, although no significant contrasts were found.
+
+The results suggest that personality plays a larger role when looks are less attractive, but the variability in the data prevents any clear conclusions. 
+
+```{r}
+# Group data by Gender, Looks, and Personality
+descriptive_stats <- looksorpersonality_long %>%
+  group_by(Gender, looks, personality) %>%
+  summarize(
+    N = n(),
+    Mean = mean(rating, na.rm = TRUE),
+    Std_Dev = sd(rating, na.rm = TRUE),
+    Minimum = min(rating, na.rm = TRUE),
+    Maximum = max(rating, na.rm = TRUE)
+  )
+
+# View the results
+print(descriptive_stats)
+```
+
+---
+title: "Interaction Effects: Gender, Looks, and Personality"
+output: pdf_document
+---
+
+## 1. Gender × Looks Interaction
+
+From the descriptive statistics, the interaction between **Gender** and **Looks** is clear:
+
+- For both males and females, the highest mean ratings are given to the "attractive" (att) group, followed by the "average" (av) and "ugly" (ug) groups.
+- Males consistently rate attractive individuals very high across all levels of looks, with a mean rating of 88.3 for "att_high" and 88.5 for "att_some".
+- Females, while rating attractive individuals similarly high (mean = 89.6 for "att_high"), rate "ugly" individuals higher (mean = 86.7 for "ug_high") compared to males (mean = 56.8 for "ug_high"). This suggests that females may place slightly less emphasis on looks compared to males, particularly for the "ugly" group.
+
+**Interpretation**:  
+Males prioritize looks more strongly, especially when comparing ugly individuals, where females tend to provide higher ratings. The ratings gap between "ugly" and "attractive" individuals is larger for males than for females.
+
+
+## 2. Gender × Personality Interaction
+
+The interaction between **Gender** and **Personality** also shows differences:
+
+- Males generally give consistently higher ratings across personality levels for attractive individuals (e.g., 88.3 for "att_high" and 88.5 for "att_some"). However, when personality is "none", ratings for males drop significantly only for less attractive individuals (mean = 45.8 for "ug_none").
+- Females, on the other hand, show a more pronounced drop in ratings as personality decreases, particularly for unattractive individuals (e.g., 46.1 for "ug_none" and 47.0 for "av_none").
+
+**Interpretation**:  
+Females are more sensitive to personality differences, especially for individuals with lower attractiveness. The drop in ratings from "high" to "none" is more significant for females, especially for "ugly" and "average" individuals, suggesting that females may prioritize personality more when looks are less appealing.
+
+## 3. Looks × Personality Interaction
+
+There is also a notable interaction between **Looks** and **Personality**:
+
+- For attractive individuals, personality doesn't dramatically change the ratings for males or females (means between 87.1 and 89.6).
+- However, for average and ugly individuals, the influence of personality becomes much more pronounced. For instance, individuals rated as "ugly" with "high" charisma receive much higher ratings from both males (mean = 56.8) and females (mean = 86.7) compared to those with "none" charisma (means around 45-46 for both genders).
+
+**Interpretation**:  
+Personality significantly affects ratings for individuals with average or unattractive looks. While attractiveness remains a primary factor, the positive impact of a strong personality is more apparent for less attractive individuals. For attractive individuals, the effect of personality on ratings is less prominent.
+
+
+```{r}
+# Gender * Looks Interaction Plot
+gender_looks_plot <- ggplot(descriptive_stats, aes(x = looks, y = Mean, color = Gender, group = Gender)) +
+  geom_line() +
+  geom_point(size = 3) +
+  labs(title = "Interaction Between Gender and Looks", x = "Looks", y = "Mean Rating") +
+  theme_minimal()
+
+# Gender * Personality Interaction Plot
+gender_personality_plot <- ggplot(descriptive_stats, aes(x = personality, y = Mean, color = Gender, group = Gender)) +
+  geom_line() +
+  geom_point(size = 3) +
+  labs(title = "Interaction Between Gender and Personality", x = "Personality", y = "Mean Rating") +
+  theme_minimal()
+
+# Looks * Personality Interaction Plot
+looks_personality_plot <- ggplot(descriptive_stats, aes(x = looks, y = Mean, color = personality, group = personality)) +
+  geom_line() +
+  geom_point(size = 3) +
+  labs(title = "Interaction Between Looks and Personality", x = "Looks", y = "Mean Rating") +
+  theme_minimal()
+
+# Display the plots
+print(gender_looks_plot)
+print(gender_personality_plot)
+print(looks_personality_plot)
+```
+
+
+## Analysis of Two-Way Interactions
+
+Since the three-way interaction is the primary interest, we can first look at the two-way interactions, which have been visualized.
+
+### A. Gender * Looks Interaction
+
+- **Plot Interpretation**: In the first plot, the interaction between **Gender** and **Looks** shows that both males and females rate attractive individuals highly. However, ratings for average (av) and unattractive (ug) individuals diverge more significantly:
+  - Females rate unattractive individuals much lower compared to males.
+  - For males, ratings decrease less drastically as looks decline from attractive to unattractive.
+  - This indicates that looks may have a stronger influence on females' ratings than on males'.
+
+### B. Gender * Personality Interaction
+
+- **Plot Interpretation**: In the second plot, the interaction between **Gender** and **Personality** shows a large effect for males:
+  - For males, personality levels ("high," "some," and "none") create larger differences in ratings. They rate "high" personality individuals significantly higher than those with "some" or "none" personality.
+  - Females show much less variation across different personality levels, meaning personality has less influence on their ratings compared to males.
+
+### C. Looks * Personality Interaction
+
+- **Plot Interpretation**: The third plot shows the interaction between **Looks** and **Personality**:
+  - High personality ratings result in high overall ratings across different looks categories (attractive, average, and ugly). But those without personality experience the most drastic rating decreases as looks decline.
+  - The gap between ratings of individuals with "none" personality widens dramatically as their looks worsen.
+  - This suggests that personality can mitigate the negative impact of lower looks ratings, particularly for those who are perceived as "average" or "ugly."
+
+## Conclusion: Key Insights from Two-Way Interactions
+
+- **Gender and Looks**: Looks seem to matter more for females, as their ratings drop significantly for unattractive individuals.
+- **Gender and Personality**: Males show a greater sensitivity to personality levels, whereas females remain consistent.
+- **Looks and Personality**: The combination of looks and personality has a notable interaction, with high personality being a buffer against the negative effect of low looks ratings.
+
+For a three-way interaction, the combined effect of **Gender**, **Looks**, and **Personality** likely shows different patterns based on gender and personality. The final interpretation would involve comparing models with and without the three-way interaction term.
+
+
+
+**3. Analyze the remaining combinations of the design and interpret the effects.**
+
+To analyze the potential three-way interaction between gender, looks, and personality, we first consider the two-way interactions present in the dataset. The interaction plots suggest that both gender and looks, as well as gender and personality, significantly influence mean ratings.
+
+In the gender and looks interaction plot, we observe varying mean ratings across different looks for each gender. For instance, one gender may consistently rate certain looks higher than the other, indicating a preference or bias linked to gender. This suggests that perceptions of looks are not uniform across genders, highlighting the need to consider gender when evaluating attractiveness.
+
+Similarly, the gender and personality interaction plot indicates that mean ratings fluctuate based on personality traits, again differing by gender. This might imply that certain personality traits are more favorably perceived in one gender compared to another, influencing overall ratings.
+
+Lastly, the looks and personality interaction plot illustrates how different looks can be rated variably depending on personality. This suggests that the perceived attractiveness of looks is influenced by the personality traits attributed to individuals. For example, someone with a more outgoing personality may be rated higher in looks than someone with a more reserved personality.
+
+
+\newpage
+**4. Make a report of the analysis including the checking of assumptions.** 
+
+**Assumption 1: Random Sampling**
+The study assumes that the selection of participants or sampled units is conducted
+through random sampling. Random sampling involves each member of the population having an
+equal chance of being selected for the study. This method ensures that the sample represents the
+population accurately, minimizing bias and allowing for generalization of findings to the larger
+population.
+
+**Assumption 2: Independence**
+The study assumes that observations or data points collected from the sample are
+independent of each other. Independence of observations signifies that the value or outcome of
+one observation doesn't influence or affect the value of another. This assumption is crucial for
+many statistical analyses as dependencies between observations can skew results, leading to
+inaccurate conclusions.
+
+```{r}
+
+# Assumption 3: Normality Check
+# Q-Q Plot for Ratings
+ggplot(looksorpersonality_long, aes(sample = rating)) +
+  geom_qq() +
+  geom_qq_line() +
+  labs(title = "Q-Q Plot of Ratings", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+  theme_minimal()
+
+# Shapiro-Wilk Test
+shapiro_test <- shapiro.test(looksorpersonality_long$rating)
+print(paste("Shapiro-Wilk Test: W =", shapiro_test$statistic, ", p-value =", shapiro_test$p.value))
+
+# Assumption 4: Homogeneity of Variance Check
+# Boxplot
+ggplot(looksorpersonality_long, aes(x = interaction(looks, personality), y = rating)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Ratings by Looks and Personality", x = "Looks and Personality", y = "Rating") +
+  theme_minimal()
+```
+
+
+
+**Assumption 3: Normality Check**
+
+- **Q-Q Plot**:  
+  The Q-Q plot of the ratings shows noticeable deviations from the straight line, especially at both the lower and upper ends. This suggests that the ratings distribution is not perfectly normal, as the tails are heavier than expected.
+
+- **Shapiro-Wilk Test**:  
+  With a W-value of 0.898 and a p-value less than 0.001 (8.81e-10), the Shapiro-Wilk test confirms that the data significantly deviates from a normal distribution. This suggests a violation of the normality assumption for ANOVA.
+
+**Assumption 4: Homogeneity of Variance Check**
+
+- **Boxplot**:  
+  The boxplot reveals substantial differences in variance across different combinations of looks and personality conditions. Some categories, such as "ug.none" and "att.none," show larger spreads compared to others. This indicates potential heterogeneity in variance, where groups with different looks and personality combinations have varying variability in their ratings.
+
+
+**Conclusion**
+
+Both the normality and homogeneity of variance assumptions appear to be violated based on these results, implying that the ANOVA results might be less reliable. You may consider using a non-parametric alternative (e.g., Kruskal-Wallis test) or apply transformations to correct these violations.
+
